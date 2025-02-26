@@ -1,16 +1,10 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  Column,
-  BaseEntity,
-} from 'typeorm';
+import { Entity, ManyToOne, Column, BaseEntity, PrimaryColumn } from 'typeorm';
 import { Order } from './order'; // Référence à l'entité Order (Commande)
 import { Product } from './product'; // Référence à l'entité Product (Produit)
 
 @Entity('purchased_products')
 export class PurchasedProduct extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn()
   id: string;
 
   @ManyToOne(() => Order, (order) => order.products)

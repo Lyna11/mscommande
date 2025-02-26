@@ -15,6 +15,9 @@ import { OrderCreatedDto } from 'src/dto/orderCreatedDto';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { ShippingRequestDto } from '../dto/shippingRequestDto';
+import { StockMovementDto } from '../dto/stockMovementDto';
+import { StockMovementType } from '../dto/stockMovementType';
+import { OrderDetailsDto } from 'src/dto/orderDetailsDto';
 @Injectable()
 export class OrderService {
   constructor(
@@ -55,7 +58,17 @@ export class OrderService {
       }
 
       // Réservation du produit en stock
-      this.stockService.reserveStock(product.productId, product.quantity);
+      try {
+        await this.reserveStockApi(product.productId, product.quantity);
+      } catch (error) {
+        console.error(
+          `Erreur de réservation du stock pour le produit ${product.productId}`,
+          error,
+        );
+        throw new BadRequestException(
+          `Impossible de réserver le stock pour le produit ${product.productId}`,
+        );
+      }
     }
 
     // 2. Création de la commande avec le statut "PENDING"
@@ -86,12 +99,19 @@ export class OrderService {
     //envoyer la notification au systeme de livraison
     try {
       await this.sendToShippingSystem(ShippingRequestDto);
+      savedOrder.status = OrderStatusDto.Delivered;
+      await this.orderRepository.save(savedOrder);
+      console.log(`Commande ${savedOrder.id} livrée avec succès`);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      console.error(
+        "Erreur lors de l'envoi de la notification au système de livraison",
+      );
       throw new Error(
         "Erreur lors de l'envoi de la notification au système de livraison",
       );
     }
+
     return { id: savedOrder.id };
   }
   // Fonction pour envoyer la notification au système de livraison
@@ -109,5 +129,68 @@ export class OrderService {
       console.error("Erreur lors de l'envoi à l'API de livraison", error);
       throw new Error("Erreur lors de l'envoi à l'API de livraison");
     }
+  }
+
+  private async reserveStockApi(
+    productId: string,
+    quantity: number,
+  ): Promise<void> {
+    const stockMovement: StockMovementDto = {
+      productId,
+      quantity,
+      status: StockMovementType.Reserve, // On réserve le stock
+    };
+
+    const stockUrl = `http://donoma.ddns.net/api/stock/${productId}/movement`; // Remplacez par l'URL réelle
+
+    try {
+      const response = await lastValueFrom(
+        this.httpService.post(stockUrl, stockMovement),
+      );
+      console.log(
+        `Stock réservé pour le produit ${productId} :`,
+        response.data,
+      );
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (error.response && error.response.status === 400) {
+        console.error(`Stock insuffisant pour le produit ${productId}`);
+        throw new BadRequestException(
+          `Stock insuffisant pour le produit ${productId}`,
+        );
+      }
+
+      console.error(
+        `Erreur lors de la réservation du stock pour le produit ${productId}`,
+        error,
+      );
+      throw new Error(
+        `Impossible de réserver le stock pour le produit ${productId}`,
+      );
+    }
+  }
+  async getOrderDetails(orderId: string): Promise<OrderDetailsDto> {
+    // Récupération de la commande
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['products'], // Inclure les produits liés à la commande
+    });
+
+    // Vérification si la commande existe
+    if (!order) {
+      throw new NotFoundException(`Commande avec l'ID ${orderId} non trouvée.`);
+    }
+
+    // Transformation de l'entité en DTO
+    const orderDetails: OrderDetailsDto = {
+      id: order.id,
+      status: order.status,
+      products: order.products.map((product) => ({
+        productId: product.id,
+        quantity: product.quantity,
+      })),
+    };
+
+    return orderDetails;
   }
 }

@@ -10,7 +10,7 @@ import { OrderStatusDto } from '../dto/orderStatusDto'; // Enumération du statu
 
 @Entity('orders')
 export class Order extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn()
   id: string; // Identifiant unique de la commande
 
   @Column({

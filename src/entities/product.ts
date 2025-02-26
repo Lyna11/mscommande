@@ -1,15 +1,18 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
   OneToMany,
   BaseEntity,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { PurchasedProduct } from './purchasedProduct';
 
 @Entity('products')
 export class Product extends BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn()
+  idd: number;
+
+  @Column('text')
   id: string;
 
   @Column()

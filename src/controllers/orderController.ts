@@ -1,13 +1,14 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Get, Param } from '@nestjs/common';
 import { OrderService } from '../services/orderService';
 import { OrderToCreateDto } from '../dto/orderToCreateDto';
 import { OrderCreatedDto } from 'src/dto/orderCreatedDto';
+import { OrderDetailsDto } from 'src/dto/orderDetailsDto';
 
-@Controller('api')
+@Controller('api/order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Post('order')
+  @Post()
   @HttpCode(200)
   async createOrder(
     @Body() orderToCreateDto: OrderToCreateDto,
@@ -15,5 +16,10 @@ export class OrderController {
     //return ordercreatedDto
     const orderCreated = await this.orderService.createOrder(orderToCreateDto);
     return { id: orderCreated.id };
+  }
+
+  @Get(':orderId')
+  async getOrder(@Param('orderId') orderId: string): Promise<OrderDetailsDto> {
+    return this.orderService.getOrderDetails(orderId);
   }
 }
